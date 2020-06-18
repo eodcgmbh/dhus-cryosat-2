@@ -449,7 +449,7 @@
          <!-- SATELLITE -->
          <metadata name="Satellite"
                    category="summary" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
          
          <!-- INSTRUMENT -->
@@ -485,13 +485,13 @@
          <!-- PLATFORM NAME -->
          <metadata queryable="platformname" name="Platform name"
                    category="platform" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
 
          <!-- PLATFORM SHORT NAME -->
          <metadata queryable="platformshortname" name="Platform short name"
                    category="platform" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
 
          <!-- PLATFORM SERIAL IDENTIFIER -->
@@ -1141,7 +1141,7 @@
          <!-- SATELLITE -->
          <metadata name="Satellite"
                    category="summary" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
          
          <!-- INSTRUMENT -->
@@ -1209,13 +1209,13 @@
          <!-- PLATFORM NAME -->
          <metadata queryable="platformname" name="Platform name"
                    category="platform" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
 
          <!-- PLATFORM SHORT NAME -->
          <metadata queryable="platformshortname" name="Platform short name"
                    category="platform" type="text/plain">
-         CryoSat-2
+         CryoSat
          </metadata>,
 
          <!-- PLATFORM SERIAL IDENTIFIER -->
