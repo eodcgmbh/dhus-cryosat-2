@@ -570,9 +570,9 @@
          <metadata queryable="processinglevel" name="Processing level"
                    category="product" type="text/plain">
          {
-            let $VAR_level := fn:substring($name, 17, 1)
+            let $VAR_level := fn:substring($name, 17, 2)
             return
-               if ($VAR_level = "2")
+               if ($VAR_level = '2_' or $VAR_level = '_2')
                then "Level-2"
                else "UNKNOWN"
          }
@@ -1294,9 +1294,9 @@
          <metadata queryable="processinglevel" name="Processing level"
                    category="product" type="text/plain">
          {
-            let $VAR_level := fn:substring($name, 17, 1)
+            let $VAR_level := fn:substring($name, 17, 2)
             return
-               if ($VAR_level = "2")
+               if ($VAR_level = '2_' or $VAR_level = '_2')
                then "Level-2"
                else "UNKNOWN"
          }
