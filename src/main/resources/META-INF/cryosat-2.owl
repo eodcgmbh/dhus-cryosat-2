@@ -567,8 +567,7 @@
          <!-- processing -->
 
          <!-- PROCESSING LEVEL -->
-         <metadata queryable="processinglevel" name="Processing level"
-                   category="product" type="text/plain">
+<!--          
          {
             let $VAR_level := fn:substring($name, 17, 2)
             return
@@ -576,6 +575,10 @@
                then "Level-2"
                else "UNKNOWN"
          }
+-->         
+         <metadata queryable="processinglevel" name="Processing level"
+                   category="product" type="text/plain">
+         Level-2
          </metadata>,
 
          <!-- PROCESSOR VERSION -->
