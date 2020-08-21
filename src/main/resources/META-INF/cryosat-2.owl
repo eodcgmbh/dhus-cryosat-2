@@ -317,7 +317,19 @@
 		 {
 		 	let $lon180 := ($lon360 + 180) mod 360
 	 		return ($lon180 - 180)
-	 	 };         
+	 	 };        
+	 	 
+		 declare function local:addOffsetLat($lat as xs:double?,
+		                                     $offset as xs:double?) as xs:double?
+		 {
+		 	let $lato := ($lat + $offset)
+		 	return
+		 	    if ($lato > 90)
+		 	    then 90
+		 	    else if ($lato < -90)
+		 	    then -90
+		 	    else $lato
+	 	 };
 
 	 	 declare function local:getIndices($count as xs:double?,
 	 	                                   $reverse as xs:boolean?) as item()*
@@ -395,6 +407,7 @@
          let $identifier := fn:tokenize(name (.), '\.')[1]
          let $tarFile := ./*[name(.) = fn:concat( $identifier, ".tar")]
          let $hdrFile := $tarFile/*[name(.) = fn:concat( $identifier, ".HDR")]
+         let $dblFile := $tarFile/*[name(.) = fn:concat( $identifier, ".DBL")]
          let $ncFile := $tarFile/*[name(.) = fn:concat( $identifier, ".nc")]
          let $root := $ncFile/root
 
@@ -409,30 +422,66 @@
 
          let $VAR_endPosition := local:computedateTime(
             data($VAR_Fixed_Header/Validity_Period/Validity_Stop))
+            
+         let $product_type := fn:data($VAR_Fixed_Header/File_Type)
 
-         let $VAR_lat_scale := xs:float(fn:data($root/variables/lat_01/attributes/scale_factor))
-         let $VAR_lon_scale := xs:float(fn:data($root/variables/lon_01/attributes/scale_factor))
-         let $axis_name := fn:data($root/variables/lon_01/axisName)
-         
-         let $count := fn:count(fn:data($root/dataset/*[name(.) = $axis_name]/*[name(.) = $axis_name]))   
-         
-         let $offset := 0.001     
-
+		 let $VAR_lat_scale := (
+							   if ($product_type = "SIR_FDM_2_")
+							   then 1e-7
+							   else xs:float(fn:data($root/variables/lat_01/attributes/scale_factor))
+							   )
+		 let $VAR_lon_scale := (
+							   if ($product_type = "SIR_FDM_2_")
+							   then 1e-7
+							   else xs:float(fn:data($root/variables/lon_01/attributes/scale_factor))
+							   )
+		 let $axis_name := (
+						   if ($product_type = "SIR_FDM_2_")
+						   then ""
+					       else fn:data($root/variables/lon_01/axisName)
+						   )
+		 let $count := (
+					    if ($product_type = "SIR_FDM_2_")
+					    then fn:count(fn:data( $dblFile/RECORDS//*[name(.) = "Latitude"] ))
+				        else fn:count(fn:data( $root/dataset/*[name(.) = $axis_name]/*[name(.) = $axis_name] ))
+					   )
+         let $offset := 0.001
+		 let $lons_all := (
+				    	   if ($product_type = "SIR_FDM_2_")
+				           then (
+					             for $i in (1 to $count)
+						            return fn:data( $dblFile/RECORDS/RECORD/*[name(.) = "Longitude"] )
+							    )
+					       else (
+							     fn:data( $root/dataset/lon_01/*[name(.) = $axis_name] )
+							    )
+					      )
+		 let $lats_all := (
+				    	   if ($product_type = "SIR_FDM_2_")
+				           then (
+					             for $i in (1 to $count)
+						            return fn:data( $dblFile/RECORDS/RECORD/*[name(.) = "Latitude"] )
+							    )
+					       else (
+							     fn:data( $root/dataset/lat_01/*[name(.) = $axis_name] )
+							    )
+					      )
 		 let $lons1 := (
-		   for $i in local:getIndices($count,xs:boolean("false"))
-			  return fn:data($root/dataset/lon_01/*[name(.) = $axis_name])[$i] * $VAR_lon_scale )
-			  
+					    for $i in local:getIndices($count,xs:boolean("false"))
+						    return local:lon360to180( $lons_all[$i] * $VAR_lon_scale )
+					   )
 		 let $lons2 := (
-		   for $i in local:getIndices($count,xs:boolean("true"))
-			  return fn:data($root/dataset/lon_01/*[name(.) = $axis_name])[$i] * $VAR_lon_scale + $offset)
-			  
+					    for $i in local:getIndices($count,xs:boolean("true"))
+						    return local:lon360to180( $lons_all[$i] * $VAR_lon_scale + $offset )
+					   )
 		 let $lats1 := (
-		   for $i in local:getIndices($count,xs:boolean("false"))
-			  return fn:data($root/dataset/lat_01/*[name(.) = $axis_name])[$i] * $VAR_lat_scale )
-			  
+					    for $i in local:getIndices($count,xs:boolean("false"))
+						    return $lats_all[$i] * $VAR_lat_scale 
+					   )
 		 let $lats2 := (
-		   for $i in local:getIndices($count,xs:boolean("true"))
-			  return fn:data($root/dataset/lat_01/*[name(.) = $axis_name])[$i] * $VAR_lat_scale + $offset)
+					    for $i in local:getIndices($count,xs:boolean("true"))
+						    return $lats_all[$i] * $VAR_lat_scale
+					   )
 			  
 		 let $lons := ( $lons1, $lons2, $lons1[1] )
 		 let $lats := ( $lats1, $lats2, $lats1[1] )
@@ -449,7 +498,7 @@
          <!-- SATELLITE -->
          <metadata name="Satellite"
                    category="summary" type="text/plain">
-         Cryosat
+         Cryosat-2
          </metadata>,
          
          <!-- INSTRUMENT -->
@@ -614,7 +663,7 @@
          <!-- PRODUCT TYPE -->
          <metadata queryable="producttype" name="Product type"
                    category="product" type="text/plain">
-         { fn:data($VAR_Fixed_Header/File_Type)  }
+         { $product_type  }
          </metadata>,
 
          <!-- PRODUCT DESCRIPTION -->
@@ -955,8 +1004,10 @@
       </dhus:metadataTypes>
    </rdf:Description>
    
+   
 
    <!-- CRYOSAT PRODUCT netCDF -->
+   <!-- this is not used -->
    <rdf:Description rdf:about="&cryosat2;productNetCDF">
       <dhus:support/>
       <dhus:identifier rdf:parseType="Literal">
@@ -1144,7 +1195,7 @@
          <!-- SATELLITE -->
          <metadata name="Satellite"
                    category="summary" type="text/plain">
-         Cryosat
+         Cryosat-2
          </metadata>,
          
          <!-- INSTRUMENT -->
@@ -1416,5 +1467,7 @@
 
    </rdf:Description>
    
+
+
 
 </rdf:RDF>

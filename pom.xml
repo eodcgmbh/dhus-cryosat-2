@@ -9,7 +9,7 @@
 	<groupId>eu.eodc.dhus</groupId>
 	<artifactId>dhus-addon-cryosat-2</artifactId>
 	<packaging>jar</packaging>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 
 	<name>DHuS - CryoSat-2 Addon</name>
 
@@ -71,7 +71,7 @@
 		<dependency>
 			<groupId>eu.eodc.drb</groupId>
 			<artifactId>drbx-cortex-topic-cryosat-2</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<version>1.0.0</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
