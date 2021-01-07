@@ -1787,8 +1787,11 @@
          declare function local:computedateTime ($inputDate as xs:string?) as xs:string
          {
             let $input := $inputDate
-            return concat(substring($input, 5, 19),
-                          ".000Z")
+            return (
+                    if (substring($input, 22, 2) = 60)
+                    then concat(substring($input, 5, 17),"59.999Z")
+                    else concat(substring($input, 5, 19),".000Z")
+                    )            
          };
 
 		 declare function local:lon360to180($lon360 as xs:double?) as xs:double?
@@ -1914,6 +1917,25 @@
 		   
 		 return $timedelta                    
 		};	       
+		
+		declare function local:date2IsNewer($inputDay1 as xs:integer?,
+		                                    $inputSecond1 as xs:integer?,
+		                                    $inputMicrosecond1 as xs:integer?,
+		                                    $inputDay2 as xs:integer?,
+		                                    $inputSecond2 as xs:integer?,
+		                                    $inputMicrosecond2 as xs:integer?) as xs:boolean?
+		 { 
+		 let $isNewer := (
+		    if ( $inputDay1 < $inputDay2 )
+		    then xs:boolean("true")
+		    else if ( ($inputDay1 = $inputDay2) and ($inputSecond1 < $inputSecond2) )
+		    then xs:boolean("true")
+		    else if ( ($inputDay1 = $inputDay2) and ($inputSecond1 = $inputSecond2) and ($inputMicrosecond1 < $inputMicrosecond2) )
+		    then xs:boolean("true")
+		    else xs:boolean("false")
+		    )
+		 return $isNewer  
+		};
 
          <!-- ============================================================== -->
          <!-- VARIABLES                                                      -->
@@ -1989,12 +2011,54 @@
 		                else fn:data( $dblFile/DSDS/DSD[1]/NUM_DSR )
 		               )
 		                  
+         let $indices := local:getIndices($count_all,xs:boolean("false"))		
+         let $count_temp := fn:count($indices)                  
+		                  
+		 let $days1 := (
+                        for $index in (1 to $count_temp)
+                            let $i := $indices[$index] 
+						    return
+						    if ($useNc)
+						    then 0
+						    else xs:integer(fn:data( $dblFile/RECORDS/RECORD[$i]/Data_Record_Time_Day ))
+					   )
+		 let $seconds1 := (
+                        for $index in (1 to $count_temp)
+                            let $i := $indices[$index]  
+						    return
+						    if ($useNc)
+						    then 0
+						    else xs:integer( fn:data( $dblFile/RECORDS/RECORD[$i]/Data_Record_Time_Second ))
+					   )
+		 let $microseconds_all := fn:data( $root/dataset/*[name(.) = $axis_name]/*[name(.) = $axis_name] )
+		 let $microseconds1 := (
+                        for $index in (1 to $count_temp)
+                            let $i := $indices[$index]  
+						    return
+						    if ($useNc)
+						    then xs:integer( xs:decimal( $microseconds_all[$i] ) * math:power(10, 6) )
+						    else xs:integer(fn:data( $dblFile/RECORDS/RECORD[$i]/Data_Record_Time_Microsecond ))
+					   )		 		   
+		 let $istime := (
+                        for $index in (1 to $count_temp)
+                            let $i := $index
+                            let $iprev := xs:integer($index - 1)
+                            let $inext := xs:integer($index + 1)
+					        return if ( $index = 1  or $index = $count_temp )
+					               then xs:boolean("true")
+					               else if ( local:date2IsNewer( $days1[$iprev], $seconds1[$iprev], $microseconds1[$iprev], $days1[$i], $seconds1[$i], $microseconds1[$i] ) and local:date2IsNewer( $days1[$i], $seconds1[$i], $microseconds1[$i], $days1[$inext], $seconds1[$inext], $microseconds1[$inext] ) )
+					               then xs:boolean("true")
+					               else xs:boolean("false")	    
+					   )						   		 
+
 		 let $lons1 := (
-					    for $i in local:getIndices($count_all,xs:boolean("false"))
+                        for $index in (1 to $count_temp)
+                            let $i := $indices[$index]    
+					        where ( $istime[$i] )
 						    return
 						    if ($useNc)
 						    then local:lon360to180( fn:data( $root/dataset/lon_01/*[name(.) = $axis_name] )[$i] * $VAR_lon_scale )
-						    else local:lon360to180( fn:data( $dblFile/RECORDS/RECORD[$i]/Longitude ) * $VAR_lon_scale )
+						    else local:lon360to180( fn:data( $dblFile/RECORDS/RECORD[$i]/Longitude ) * $VAR_lon_scale )						    
 					   )
 					   
          let $count_final := fn:count($lons1)
@@ -2006,11 +2070,13 @@
                        )
          
 		 let $lats1 := (
-					    for $i in local:getIndices($count_all,xs:boolean("false"))
+                        for $index in (1 to $count_temp)
+                            let $i := $indices[$index]    
+					        where ( $istime[$i] )
 						    return
 						    if ($useNc)
 						    then fn:data( $root/dataset/lat_01/*[name(.) = $axis_name] )[$i] * $VAR_lat_scale 
-						    else fn:data( $dblFile/RECORDS/RECORD[$i]/Latitude ) * $VAR_lat_scale 
+						    else fn:data( $dblFile/RECORDS/RECORD[$i]/Latitude ) * $VAR_lat_scale
 					   )
          
          let $lats2 := (
@@ -2036,20 +2102,20 @@
 						        else if ( $lat < -85.05115 )
 						        then -85.0510
 						        else $lat
-					   )
+					   )					   
 			  
 		 let $lons := (
-					   if ($count_all = 1)
+					   if ($count_final = 1)
 				       then ( $lons1[1], $lons1[1], $lons1[1] + $offset, $lons1[1] + $offset, $lons1[1] )
 					   else ( $lons1, $lons2, $lons1[1] )
 					  )
 		 let $lats := (
-					   if ($count_all = 1)
+					   if ($count_final = 1)
 				       then ( $lats1[1], $lats1[1] + $offset, $lats1[1] + $offset, $lats1[1], $lats1[1] )
 					   else ( $lats1, $lats2, $lats1[1] )
 					  )
 		 let $latsmod := (
-					   if ($count_all = 1)
+					   if ($count_final = 1)
 				       then ( $lats1mod[1], $lats1mod[1] + $offset, $lats1mod[1] + $offset, $lats1mod[1], $lats1mod[1] )
 					   else ( $lats1mod, $lats2mod, $lats1mod[1] )
 					  )
@@ -2068,6 +2134,7 @@
                    category="summary" type="text/plain">
          Cryosat-2
          </metadata>,
+                  
          
          <!-- INSTRUMENT -->
          <metadata name="Instrument"
@@ -2328,7 +2395,7 @@
          (
          if (empty($lons))
          then $extractions
-         else ($extractions,$footprints)
+         else ($extractions, $footprints)
          )
       ]]>
       </dhus:metadataExtractor>
